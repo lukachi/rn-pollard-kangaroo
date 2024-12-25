@@ -1,0 +1,4 @@
+module aptos_pollard_kangaroo_mobileFFI {
+    header "aptos_pollard_kangaroo_mobileFFI.h"
+    export *
+}
