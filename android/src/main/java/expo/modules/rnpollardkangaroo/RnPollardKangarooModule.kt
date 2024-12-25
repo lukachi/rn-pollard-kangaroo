@@ -3,48 +3,133 @@ package expo.modules.rnpollardkangaroo
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.net.URL
+import android.util.Base64
+import uniffi.aptos_pollard_kangaroo_mobile.WasmKangaroo
+import uniffi.aptos_pollard_kangaroo_mobile.createKangaroo
+import java.math.BigInteger
+
+class KangarooInstance private constructor(
+    tableObject: String,
+    n: ULong,
+    w: ULong,
+    r: ULong,
+    bits: UByte
+) {
+    // Singleton instance
+    companion object {
+        @Volatile
+        private var instance: KangarooInstance? = null
+
+        // Initialize the singleton instance
+        @Throws(Exception::class)
+        fun initialize(
+            tableObject: String,
+            n: ULong,
+            w: ULong,
+            r: ULong,
+            bits: UByte
+        ) {
+            if (instance == null) {
+                synchronized(this) {
+                    if (instance == null) {
+                        instance = KangarooInstance(tableObject, n, w, r, bits)
+                    } else {
+                        throw IllegalStateException("KangarooInstance is already initialized!")
+                    }
+                }
+            } else {
+                throw IllegalStateException("KangarooInstance is already initialized!")
+            }
+        }
+
+        // Get the initialized instance
+        @Throws(Exception::class)
+        fun getInstance(): KangarooInstance {
+            return instance ?: throw IllegalStateException("KangarooInstance is not initialized!")
+        }
+    }
+
+    // Kangaroo logic (uses the provided createKangaroo function)
+    private var wasmKangaroo: WasmKangaroo = createKangaroo(tableObject, n, w, r, bits)
+
+    // Method to set Kangaroo
+    fun setWasmKangaroo(kangaroo: WasmKangaroo) {
+        wasmKangaroo = kangaroo
+    }
+
+    // Method to get Kangaroo
+    fun getWasmKangaroo(): WasmKangaroo {
+        return wasmKangaroo
+    }
+
+    // Solve DLP using WasmKangaroo
+    @Throws(Exception::class)
+    fun solveDlp(pk: ByteArray): Long {
+        return wasmKangaroo.solveDlp(pk).toLong()
+    }
+}
 
 class RnPollardKangarooModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
-  override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('RnPollardKangaroo')` in JavaScript.
-    Name("RnPollardKangaroo")
+    // Each module class must implement the definition function. The definition consists of components
+    // that describes the module's functionality and behavior.
+    // See https://docs.expo.dev/modules/module-api for more details about available components.
+    override fun definition() = ModuleDefinition {
+        // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
+        // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
+        // The module will be accessible from `requireNativeModule('RnPollardKangaroo')` in JavaScript.
+        Name("RnPollardKangaroo")
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
-    Constants(
-      "PI" to Math.PI
-    )
+      // Initialize Kangaroo Singleton
+      AsyncFunction("initializeKangaroo") {
+          tableObject: String,
+          n: String, // Pass as String to handle large numbers safely from JS
+          w: String,
+          r: String,
+          bits: Int // Bits as Int since JS doesn't support UByte
+        ->
+        try {
+          // Convert parameters to appropriate types
+          val nValue = n.toULong()
+          val wValue = w.toULong()
+          val rValue = r.toULong()
+          val bitsValue = bits.toUByte()
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(RnPollardKangarooView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: RnPollardKangarooView, url: URL ->
-        view.webView.loadUrl(url.toString())
+          // Initialize singleton
+          KangarooInstance.initialize(tableObject, nValue, wValue, rValue, bitsValue)
+          true
+        } catch (e: Exception) {
+          throw Exception("Error initializing Kangaroo: ${e.localizedMessage}")
+        }
       }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
+
+      // Solve DLP Function
+      AsyncFunction("solveDlp") { pkString: String ->
+        try {
+          // Retrieve singleton instance
+          val kangarooInstance = KangarooInstance.getInstance()
+
+          // Convert BigInt string to ByteArray
+          val pkData = bigIntStringToByteArray(pkString)
+            ?: throw IllegalArgumentException("Invalid BigInt string!")
+
+          // Solve DLP and return result
+          kangarooInstance.solveDlp(pkData)
+        } catch (e: Exception) {
+          throw Exception("Error solving DLP: ${e.localizedMessage}")
+        }
+      }
     }
+}
+
+// Utility function to convert BigInt string to ByteArray
+private fun bigIntStringToByteArray(value: String): ByteArray? {
+  return try {
+    val bigInt = BigInteger(value)
+    val byteArray = bigInt.toByteArray()
+
+    // Ensure the byte array doesn't contain leading zeroes
+    if (byteArray[0] == 0.toByte()) byteArray.copyOfRange(1, byteArray.size) else byteArray
+  } catch (e: Exception) {
+    null
   }
 }

@@ -10,9 +10,11 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@aptos-labs/ts-sdk": "../../aptos-ts-sdk/aptos-labs-ts-sdk-1.33.1.tgz",
     "expo": "~52.0.23",
     "react": "18.3.1",
-    "react-native": "0.76.5"
+    "react-native": "0.76.5",
+    "react-native-get-random-values": "^1.11.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

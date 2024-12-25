@@ -1,5 +1,26 @@
-// Reexport the native module. On web, it will be resolved to RnPollardKangarooModule.web.ts
-// and on native platforms to RnPollardKangarooModule.ts
-export { default } from './RnPollardKangarooModule';
-export { default as RnPollardKangarooView } from './RnPollardKangarooView';
-export * from  './RnPollardKangaroo.types';
+import RnPollardKangarooModule from "./RnPollardKangarooModule";
+export * from "./RnPollardKangaroo.types";
+
+export const initializeKangaroo = async (
+  tableObjectJson: string,
+  n: bigint,
+  w: bigint,
+  r: bigint,
+  bits: number,
+) => {
+  await RnPollardKangarooModule.initializeKangaroo(
+    tableObjectJson,
+    +n.toString(),
+    +w.toString(),
+    +r.toString(),
+    bits,
+  );
+};
+
+export const solveDLP = async (pk: Uint8Array) => {
+  const result = await RnPollardKangarooModule.solveDlp(pk);
+
+  console.log("result", result);
+
+  return result;
+};
