@@ -17,6 +17,7 @@ package uniffi.aptos_pollard_kangaroo_mobile
 // compile the Rust component. The easiest way to ensure this is to bundle the Kotlin
 // helpers directly inline like we're doing here.
 
+import com.google.mlkit.common.sdkinternal.Cleaner
 import com.sun.jna.Callback
 import com.sun.jna.Library
 import com.sun.jna.Native
@@ -1303,9 +1304,7 @@ interface UniffiCleaner {
 
 // The fallback Jna cleaner, which is available for both Android, and the JVM.
 private class UniffiJnaCleaner : UniffiCleaner {
-    private val cleaner =
-        com.sun.jna.internal.Cleaner
-            .getCleaner()
+    private val cleaner = Cleaner.create()
 
     override fun register(
         value: Any,
@@ -1314,7 +1313,7 @@ private class UniffiJnaCleaner : UniffiCleaner {
 }
 
 private class UniffiJnaCleanable(
-    private val cleanable: com.sun.jna.internal.Cleaner.Cleanable,
+    private val cleanable: Cleaner.Cleanable,
 ) : UniffiCleaner.Cleanable {
     override fun clean() = cleanable.clean()
 }
@@ -1337,9 +1336,7 @@ private fun UniffiCleaner.Companion.create(): UniffiCleaner =
     }
 
 private class JavaLangRefCleaner : UniffiCleaner {
-    val cleaner =
-        java.lang.ref.Cleaner
-            .create()
+    val cleaner = java.lang.ref.Cleaner.create()
 
     override fun register(
         value: Any,
