@@ -1,5 +1,5 @@
 {
-  "name": "rn-pollard-kangaroo",
+  "name": "@lukachi/rn-pollard-kangaroo",
   "version": "0.1.0",
   "description": "Pollard Kangaroo Decryption",
   "main": "build/index.js",
