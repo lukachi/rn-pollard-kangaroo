@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "expo.modules.rnpollardkangaroo.example"
+      "bundleIdentifier": "expo.modules.rnpollardkangaroo.example",
+      "appleTeamId": "T7CLECN442"
     },
     "android": {
       "adaptiveIcon": {

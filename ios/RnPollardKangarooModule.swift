@@ -8,16 +8,10 @@ public class RnPollardKangarooModule: Module {
     Name("RnPollardKangaroo")
 
       // Initialize the Kangaroo singleton
-      AsyncFunction("initializeKangaroo") { (tableObject: String, n: UInt64, w: UInt64, r: UInt64, bits: UInt8) in
+      AsyncFunction("initializeKangaroo") { (tableMapJSON: String) in
           do {
               // Try initializing the KangarooInstance
-              kangarooInstance = try createKangaroo(
-                  tableObject: tableObject,
-                  n: n,
-                  w: w,
-                  r: r,
-                  bits: bits
-              )
+              kangarooInstance = try createKangaroo(paramsJson: tableMapJSON)
               return true
           } catch {
               // Catch and throw the error

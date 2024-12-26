@@ -399,22 +399,6 @@ fileprivate class UniffiHandleMap<T> {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
-    typealias FfiType = UInt8
-    typealias SwiftType = UInt8
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt8 {
-        return try lift(readInt(&buf))
-    }
-
-    public static func write(_ value: UInt8, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -619,6 +603,8 @@ public enum MyError {
     
     case Generic(message: String)
     
+    case Details(message: String)
+    
 }
 
 
@@ -647,6 +633,10 @@ public struct FfiConverterTypeMyError: FfiConverterRustBuffer {
             message: try FfiConverterString.read(from: &buf)
         )
         
+        case 4: return .Details(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
 
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -664,6 +654,8 @@ public struct FfiConverterTypeMyError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
         case .Generic(_ /* message is ignored*/):
             writeInt(&buf, Int32(3))
+        case .Details(_ /* message is ignored*/):
+            writeInt(&buf, Int32(4))
 
         
         }
@@ -678,14 +670,10 @@ extension MyError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
-public func createKangaroo(tableObject: String, n: UInt64, w: UInt64, r: UInt64, bits: UInt8)throws  -> WasmKangaroo {
+public func createKangaroo(paramsJson: String)throws  -> WasmKangaroo {
     return try  FfiConverterTypeWASMKangaroo.lift(try rustCallWithError(FfiConverterTypeMyError.lift) {
     uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(
-        FfiConverterString.lower(tableObject),
-        FfiConverterUInt64.lower(n),
-        FfiConverterUInt64.lower(w),
-        FfiConverterUInt64.lower(r),
-        FfiConverterUInt8.lower(bits),$0
+        FfiConverterString.lower(paramsJson),$0
     )
 })
 }
@@ -705,7 +693,7 @@ private var initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 45565) {
+    if (uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 142) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_aptos_pollard_kangaroo_mobile_checksum_method_wasmkangaroo_solve_dlp() != 4075) {

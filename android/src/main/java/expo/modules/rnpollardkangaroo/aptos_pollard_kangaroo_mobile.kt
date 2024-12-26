@@ -786,11 +786,7 @@ internal interface UniffiLib : Library {
     ): Long
 
     fun uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(
-        `tableObject`: RustBuffer.ByValue,
-        `n`: Long,
-        `w`: Long,
-        `r`: Long,
-        `bits`: Byte,
+        `paramsJson`: RustBuffer.ByValue,
         uniffi_out_err: UniffiRustCallStatus,
     ): Pointer
 
@@ -1029,7 +1025,7 @@ private fun uniffiCheckContractApiVersion(lib: UniffiLib) {
 
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: UniffiLib) {
-    if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 45565.toShort()) {
+    if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 142.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_method_wasmkangaroo_solve_dlp() != 4075.toShort()) {
@@ -1082,26 +1078,6 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
  * @suppress
  * */
 object NoPointer
-
-/**
- * @suppress
- */
-public object FfiConverterUByte : FfiConverter<UByte, Byte> {
-    override fun lift(value: Byte): UByte = value.toUByte()
-
-    override fun read(buf: ByteBuffer): UByte = lift(buf.get())
-
-    override fun lower(value: UByte): Byte = value.toByte()
-
-    override fun allocationSize(value: UByte) = 1UL
-
-    override fun write(
-        value: UByte,
-        buf: ByteBuffer,
-    ) {
-        buf.put(value.toByte())
-    }
-}
 
 /**
  * @suppress
@@ -1524,6 +1500,10 @@ sealed class MyException(
         message: String,
     ) : MyException(message)
 
+    class Details(
+        message: String,
+    ) : MyException(message)
+
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<MyException> {
         override fun lift(error_buf: RustBuffer.ByValue): MyException = FfiConverterTypeMyError.lift(error_buf)
     }
@@ -1538,6 +1518,7 @@ public object FfiConverterTypeMyError : FfiConverterRustBuffer<MyException> {
             1 -> MyException.MissingInput(FfiConverterString.read(buf))
             2 -> MyException.IndexOutOfBounds(FfiConverterString.read(buf))
             3 -> MyException.Generic(FfiConverterString.read(buf))
+            4 -> MyException.Details(FfiConverterString.read(buf))
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
 
@@ -1560,26 +1541,20 @@ public object FfiConverterTypeMyError : FfiConverterRustBuffer<MyException> {
                 buf.putInt(3)
                 Unit
             }
+            is MyException.Details -> {
+                buf.putInt(4)
+                Unit
+            }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
     }
 }
 
 @Throws(MyException::class)
-fun `createKangaroo`(
-    `tableObject`: kotlin.String,
-    `n`: kotlin.ULong,
-    `w`: kotlin.ULong,
-    `r`: kotlin.ULong,
-    `bits`: kotlin.UByte,
-): WasmKangaroo =
+fun `createKangaroo`(`paramsJson`: kotlin.String): WasmKangaroo =
     FfiConverterTypeWASMKangaroo.lift(
         uniffiRustCallWithError(MyException) { _status ->
             UniffiLib.INSTANCE.uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(
-                FfiConverterString.lower(`tableObject`),
-                FfiConverterULong.lower(`n`),
-                FfiConverterULong.lower(`w`),
-                FfiConverterULong.lower(`r`),
-                FfiConverterUByte.lower(`bits`),
+                FfiConverterString.lower(`paramsJson`),
                 _status,
             )
         },

@@ -268,7 +268,7 @@ uint64_t uniffi_aptos_pollard_kangaroo_mobile_fn_method_wasmkangaroo_solve_dlp(v
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_APTOS_POLLARD_KANGAROO_MOBILE_FN_FUNC_CREATE_KANGAROO
 #define UNIFFI_FFIDEF_UNIFFI_APTOS_POLLARD_KANGAROO_MOBILE_FN_FUNC_CREATE_KANGAROO
-void*_Nonnull uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(RustBuffer table_object, uint64_t n, uint64_t w, uint64_t r, uint8_t bits, RustCallStatus *_Nonnull out_status
+void*_Nonnull uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(RustBuffer params_json, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_APTOS_POLLARD_KANGAROO_MOBILE_RUSTBUFFER_ALLOC

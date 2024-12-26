@@ -1,15 +1,11 @@
-import {
-  bytesToBigIntLE,
-  TwistedEd25519PrivateKey,
-  TwistedElGamal,
-} from "@aptos-labs/ts-sdk";
+import { TwistedEd25519PrivateKey, TwistedElGamal } from "@aptos-labs/ts-sdk";
 import { useState } from "react";
-import { Button, SafeAreaView, ScrollView } from "react-native";
+import { Button, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { initializeKangaroo, solveDLP } from "rn-pollard-kangaroo";
 
 import "react-native-get-random-values";
 
-type TableMap = {
+type TableMapJSON = {
   file_name: string;
   s: string[];
   slog: string[];
@@ -19,7 +15,7 @@ type TableMap = {
   }[];
 };
 
-export async function loadTableMapJSON(url: string): Promise<TableMap> {
+export async function loadTableMapJSON(url: string): Promise<TableMapJSON> {
   const tableMapResponse = await fetch(url);
 
   if (!tableMapResponse.ok) {
@@ -100,30 +96,61 @@ const execution = async (
 };
 
 export default function App() {
-  const [kangarooTable16, setKangarooTable16] = useState<TableMap>();
-  const [kangarooTable32, setKangarooTable32] = useState<TableMap>();
-  const [kangarooTable48, setKangarooTable48] = useState<TableMap>();
+  const [kangarooMapsJsonString, setKangarooMapsJsonString] =
+    useState<string>();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const preloadTables = async () => {
     setIsSubmitting(true);
 
-    const [table16, table32, table48] = await Promise.all([
-      loadTableMapJSON(
-        "https://raw.githubusercontent.com/distributed-lab/pollard-kangaroo-plus-testing/refs/heads/tables/output_8_8000_16_64.json",
-      ),
-      loadTableMapJSON(
-        "https://raw.githubusercontent.com/distributed-lab/pollard-kangaroo-plus-testing/refs/heads/tables/output_2048_4000_32_128.json",
-      ),
-      loadTableMapJSON(
-        "https://raw.githubusercontent.com/distributed-lab/pollard-kangaroo-plus-testing/refs/heads/tables/output_65536_40000_48_128.json",
-      ),
-    ]);
+    try {
+      const [table16, table32, table48] = await Promise.all([
+        loadTableMapJSON(
+          "https://raw.githubusercontent.com/distributed-lab/pollard-kangaroo-plus-testing/refs/heads/tables/output_8_8000_16_64.json",
+        ),
+        loadTableMapJSON(
+          "https://raw.githubusercontent.com/distributed-lab/pollard-kangaroo-plus-testing/refs/heads/tables/output_2048_4000_32_128.json",
+        ),
+        loadTableMapJSON(
+          "https://raw.githubusercontent.com/distributed-lab/pollard-kangaroo-plus-testing/refs/heads/tables/output_65536_40000_48_128.json",
+        ),
+      ]);
 
-    setKangarooTable16(table16);
-    setKangarooTable32(table32);
-    setKangarooTable48(table48);
+      const mapsJsonString = JSON.stringify({
+        16: {
+          n: 8000,
+          w: 8,
+          r: 64,
+          bits: 16,
+          table: table16,
+          max_attempts: 20,
+        },
+        32: {
+          n: 4000,
+          w: 2048,
+          r: 128,
+          bits: 32,
+          table: table32,
+          max_attempts: 40,
+        },
+        48: {
+          n: 40_000,
+          w: 65536,
+          r: 128,
+          bits: 48,
+          table: table48,
+          max_attempts: 1000,
+        },
+      });
+      setKangarooMapsJsonString(mapsJsonString);
+
+      await initializeKangaroo(mapsJsonString);
+
+      TwistedElGamal.setDecryptionFn(async (pk) => BigInt(await solveDLP(pk)));
+    } catch (error) {
+      console.log(error);
+    }
 
     setIsSubmitting(false);
   };
@@ -132,15 +159,6 @@ export default function App() {
     setIsSubmitting(true);
 
     try {
-      await initializeKangaroo(
-        JSON.stringify(kangarooTable16),
-        8000n,
-        8n,
-        64n,
-        16,
-      );
-      TwistedElGamal.setDecryptionFn(async (pk) => solveDLP(pk));
-
       const { randBalances, results } = await execution(16);
 
       console.log(
@@ -157,15 +175,6 @@ export default function App() {
     setIsSubmitting(true);
 
     try {
-      await initializeKangaroo(
-        JSON.stringify(kangarooTable32),
-        4000n,
-        2048n,
-        128n,
-        32,
-      );
-      TwistedElGamal.setDecryptionFn(async (pk) => solveDLP(pk));
-
       const { randBalances, results } = await execution(32);
 
       console.log(
@@ -182,15 +191,6 @@ export default function App() {
     setIsSubmitting(true);
 
     try {
-      await initializeKangaroo(
-        JSON.stringify(kangarooTable48),
-        40_000n,
-        65536n,
-        128n,
-        48,
-      );
-      TwistedElGamal.setDecryptionFn(async (pk) => solveDLP(pk));
-
       const { randBalances, results } = await execution(48);
 
       console.log(
@@ -206,28 +206,28 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.container}>
+        <View style={{ width: "100%", height: 2, backgroundColor: "grey" }} />
+        <Text style={{ color: "black", marginHorizontal: "auto" }}>WASM</Text>
+        <View style={{ width: "100%", height: 2, backgroundColor: "grey" }} />
         <Button
           onPress={preloadTables}
           title="preload tables"
-          disabled={
-            Boolean(kangarooTable16 && kangarooTable32 && kangarooTable48) ||
-            isSubmitting
-          }
+          disabled={!!kangarooMapsJsonString || isSubmitting}
         />
         <Button
           onPress={test16}
           title="Run Test 16"
-          disabled={!kangarooTable16 || isSubmitting}
+          disabled={!kangarooMapsJsonString || isSubmitting}
         />
         <Button
           onPress={test32}
           title="Run Test 32"
-          disabled={!kangarooTable32 || isSubmitting}
+          disabled={!kangarooMapsJsonString || isSubmitting}
         />
         <Button
           onPress={test48}
           title="Run Test 48"
-          disabled={!kangarooTable48 || isSubmitting}
+          disabled={!kangarooMapsJsonString || isSubmitting}
         />
       </ScrollView>
     </SafeAreaView>
