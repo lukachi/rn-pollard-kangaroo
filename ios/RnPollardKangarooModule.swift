@@ -27,7 +27,6 @@ public class RnPollardKangarooModule: Module {
               // For each of kangarooInstances, call solveDlp with timeLimits, if result of execution is null, continue to the next execution with next time limit, if instance was the last, and no result was found - throw error
               
               for (index, kangarooInstance) in self.kangarooInstances.enumerated() {
-                  guard let timeLimit = timeLimits[index] else { nil }
                   if let result = try kangarooInstance.solveDlp(pk: pkData, maxTime: timeLimits[index]) {
                       return result
                   }
