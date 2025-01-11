@@ -399,6 +399,22 @@ fileprivate class UniffiHandleMap<T> {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
+    typealias FfiType = UInt8
+    typealias SwiftType = UInt8
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt8 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: UInt8, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -476,7 +492,7 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 public protocol WasmKangarooProtocol : AnyObject {
     
-    func solveDlp(pk: Data)  -> UInt64
+    func solveDlp(pk: Data, maxTime: UInt64?) throws  -> UInt64?
     
 }
 
@@ -530,10 +546,11 @@ open class WasmKangaroo:
     
 
     
-open func solveDlp(pk: Data) -> UInt64 {
-    return try!  FfiConverterUInt64.lift(try! rustCall() {
+open func solveDlp(pk: Data, maxTime: UInt64?)throws  -> UInt64? {
+    return try  FfiConverterOptionUInt64.lift(try rustCallWithError(FfiConverterTypeMyError.lift) {
     uniffi_aptos_pollard_kangaroo_mobile_fn_method_wasmkangaroo_solve_dlp(self.uniffiClonePointer(),
-        FfiConverterData.lower(pk),$0
+        FfiConverterData.lower(pk),
+        FfiConverterOptionUInt64.lower(maxTime),$0
     )
 })
 }
@@ -670,10 +687,34 @@ extension MyError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
-public func createKangaroo(paramsJson: String)throws  -> WasmKangaroo {
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
+    typealias SwiftType = UInt64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+public func createKangaroo(secretSize: UInt8)throws  -> WasmKangaroo {
     return try  FfiConverterTypeWASMKangaroo.lift(try rustCallWithError(FfiConverterTypeMyError.lift) {
     uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(
-        FfiConverterString.lower(paramsJson),$0
+        FfiConverterUInt8.lower(secretSize),$0
     )
 })
 }
@@ -693,10 +734,10 @@ private var initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 142) {
+    if (uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 49876) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_aptos_pollard_kangaroo_mobile_checksum_method_wasmkangaroo_solve_dlp() != 4075) {
+    if (uniffi_aptos_pollard_kangaroo_mobile_checksum_method_wasmkangaroo_solve_dlp() != 11746) {
         return InitializationResult.apiChecksumMismatch
     }
 

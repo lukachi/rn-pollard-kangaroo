@@ -783,11 +783,12 @@ internal interface UniffiLib : Library {
     fun uniffi_aptos_pollard_kangaroo_mobile_fn_method_wasmkangaroo_solve_dlp(
         `ptr`: Pointer,
         `pk`: RustBuffer.ByValue,
+        `maxTime`: RustBuffer.ByValue,
         uniffi_out_err: UniffiRustCallStatus,
-    ): Long
+    ): RustBuffer.ByValue
 
     fun uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(
-        `paramsJson`: RustBuffer.ByValue,
+        `secretSize`: Byte,
         uniffi_out_err: UniffiRustCallStatus,
     ): Pointer
 
@@ -1026,10 +1027,10 @@ private fun uniffiCheckContractApiVersion(lib: UniffiLib) {
 
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: UniffiLib) {
-    if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 142.toShort()) {
+    if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_func_create_kangaroo() != 49876.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_method_wasmkangaroo_solve_dlp() != 4075.toShort()) {
+    if (lib.uniffi_aptos_pollard_kangaroo_mobile_checksum_method_wasmkangaroo_solve_dlp() != 11746.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1079,6 +1080,26 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
  * @suppress
  * */
 object NoPointer
+
+/**
+ * @suppress
+ */
+public object FfiConverterUByte : FfiConverter<UByte, Byte> {
+    override fun lift(value: Byte): UByte = value.toUByte()
+
+    override fun read(buf: ByteBuffer): UByte = lift(buf.get())
+
+    override fun lower(value: UByte): Byte = value.toByte()
+
+    override fun allocationSize(value: UByte) = 1UL
+
+    override fun write(
+        value: UByte,
+        buf: ByteBuffer,
+    ) {
+        buf.put(value.toByte())
+    }
+}
 
 /**
  * @suppress
@@ -1351,7 +1372,10 @@ private class JavaLangRefCleanable(
 }
 
 public interface WasmKangarooInterface {
-    fun `solveDlp`(`pk`: kotlin.ByteArray): kotlin.ULong
+    fun `solveDlp`(
+        `pk`: kotlin.ByteArray,
+        `maxTime`: kotlin.ULong?,
+    ): kotlin.ULong?
 
     companion object
 }
@@ -1440,13 +1464,18 @@ open class WasmKangaroo :
             UniffiLib.INSTANCE.uniffi_aptos_pollard_kangaroo_mobile_fn_clone_wasmkangaroo(pointer!!, status)
         }
 
-    override fun `solveDlp`(`pk`: kotlin.ByteArray): kotlin.ULong =
-        FfiConverterULong.lift(
+    @Throws(MyException::class)
+    override fun `solveDlp`(
+        `pk`: kotlin.ByteArray,
+        `maxTime`: kotlin.ULong?,
+    ): kotlin.ULong? =
+        FfiConverterOptionalULong.lift(
             callWithPointer {
-                uniffiRustCall { _status ->
+                uniffiRustCallWithError(MyException) { _status ->
                     UniffiLib.INSTANCE.uniffi_aptos_pollard_kangaroo_mobile_fn_method_wasmkangaroo_solve_dlp(
                         it,
                         FfiConverterByteArray.lower(`pk`),
+                        FfiConverterOptionalULong.lower(`maxTime`),
                         _status,
                     )
                 }
@@ -1546,12 +1575,44 @@ public object FfiConverterTypeMyError : FfiConverterRustBuffer<MyException> {
     }
 }
 
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalULong : FfiConverterRustBuffer<kotlin.ULong?> {
+    override fun read(buf: ByteBuffer): kotlin.ULong? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterULong.read(buf)
+    }
+
+    override fun allocationSize(value: kotlin.ULong?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterULong.allocationSize(value)
+        }
+    }
+
+    override fun write(
+        value: kotlin.ULong?,
+        buf: ByteBuffer,
+    ) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterULong.write(value, buf)
+        }
+    }
+}
+
 @Throws(MyException::class)
-fun `createKangaroo`(`paramsJson`: kotlin.String): WasmKangaroo =
+fun `createKangaroo`(`secretSize`: kotlin.UByte): WasmKangaroo =
     FfiConverterTypeWASMKangaroo.lift(
         uniffiRustCallWithError(MyException) { _status ->
             UniffiLib.INSTANCE.uniffi_aptos_pollard_kangaroo_mobile_fn_func_create_kangaroo(
-                FfiConverterString.lower(`paramsJson`),
+                FfiConverterUByte.lower(`secretSize`),
                 _status,
             )
         },

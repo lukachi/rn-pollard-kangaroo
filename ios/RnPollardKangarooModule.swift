@@ -2,16 +2,18 @@ import ExpoModulesCore
 
 public class RnPollardKangarooModule: Module {
     
-    private var kangarooInstance: WasmKangaroo?
+    private var kangarooInstances: [WasmKangaroo] = []
 
   public func definition() -> ModuleDefinition {
     Name("RnPollardKangaroo")
 
       // Initialize the Kangaroo singleton
-      AsyncFunction("initializeKangaroo") { (tableMapJSON: String) in
+      AsyncFunction("initializeKangaroo") { (secretSizes: [UInt8]) in
           do {
-              // Try initializing the KangarooInstance
-              kangarooInstance = try createKangaroo(paramsJson: tableMapJSON)
+              // Try createKangaroo each secretSize
+            
+              self.kangarooInstances = try secretSizes.map { try createKangaroo(secretSize: $0) }
+
               return true
           } catch {
               // Catch and throw the error
@@ -20,14 +22,18 @@ public class RnPollardKangarooModule: Module {
       }
       
       // Solve DLP using the initialized KangarooInstance
-      AsyncFunction("solveDlp") { (pkData: Data) -> UInt64 in
+      AsyncFunction("solveDlp") { (pkData: Data, timeLimits: [UInt64]) -> UInt64 in
           do {
-              // Call solveDlp and return result
-              guard let result = kangarooInstance?.solveDlp(pk: pkData) else {
-                  throw NSError(domain: "RnPollardKangarooModuleError", code: 3, userInfo: [NSLocalizedDescriptionKey: "KangarooInstance not initialized!"])
+              // For each of kangarooInstances, call solveDlp with timeLimits, if result of execution is null, continue to the next execution with next time limit, if instance was the last, and no result was found - throw error
+              
+              for (index, kangarooInstance) in self.kangarooInstances.enumerated() {
+                  guard let timeLimit = timeLimits[index] else { nil }
+                  if let result = try kangarooInstance.solveDlp(pk: pkData, maxTime: timeLimits[index]) {
+                      return result
+                  }
               }
               
-              return result
+              throw NSError(domain: "RnPollardKangarooModuleError", code: 2, userInfo: [NSLocalizedDescriptionKey: "No result found"])
           } catch {
               throw NSError(domain: "RnPollardKangarooModuleError", code: 3, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription])
           }
